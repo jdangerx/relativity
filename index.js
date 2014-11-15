@@ -7,6 +7,16 @@ var SPEED = 30; // miles per day
 $("#speed").change(function (e) {
   updatePopups();
 });
+
+$("#help").click(function(e) {
+  $("#help").hide();
+});
+
+$("#help-btn").click(function(e) {
+  console.log('hi');
+  $("#help").toggle();
+});
+
 $(document).ready(function(){
   current_location = new L.LatLng(41.790636, -87.60104);
   map = L.map('map').setView(current_location, 5);
@@ -17,25 +27,27 @@ $(document).ready(function(){
   obsMarker = L.marker(current_location, {draggable: true, title: "You are here."});
   obsMarker.addTo(map);
   obsMarker.on('dragend', function(e) {
+    var old_html = $("#info").html();
+
     current_location = e.target._latlng;
+    var lng = current_location.lng;
+    var lat = current_location.lat;
     updatePopups();
   });
 
   map.on('click', function(e) {
     var targetPos = e.latlng;
-    // var dist = haversine(current_location, targetPos);
-    // var travelTime = dist / $("#speed").val() | 0; // days
     getNewsFrom4D(targetPos);
   });
 
   // setup with new york, chicago, LA, philadelphia, san francisco, houston
-  var majorCities = [[42.3482, -75.1890], //nyc
-                     [41.790636, -87.60104], // chicago
-                     [34.0500, -118.2500], // LA
-                     [37.7833, -122.4167], // sf
-                     [39.9500, -75.1667], // philly
-                     [29.7628, -95.3831] // houston
-                    ];
+  var majorCities = {"New York": [42.3482, -75.1890],
+                     "Chicago": [41.790636, -87.60104], 
+                     "Los Angeles": [34.0500, -118.2500],
+                     "San Francisco": [37.7833, -122.4167], 
+                     "Philadelphia": [39.9500, -75.1667], 
+                     "Houston": [29.7628, -95.3831] 
+                    };
   // majorCities.forEach(function(city) {
   //   var targetPos = new L.LatLng(city[0], city[1]);
   //   var dist = haversine(current_location, targetPos);
