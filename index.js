@@ -3,9 +3,19 @@ var obsMarker;
 var popups = [];
 var popup;
 var current_location;
-var SPEED = 30; // miles per day
+var majorCities = {"New York": [42.3482, -75.1890],
+                   "Chicago": [41.790636, -87.60104], 
+                   "Los Angeles": [34.0500, -118.2500],
+                   "San Francisco": [37.7833, -122.4167], 
+                   "Philadelphia": [39.9500, -75.1667], 
+                   "Houston": [29.7628, -95.3831] 
+                  };
 $("#speed").change(function (e) {
   updatePopups();
+});
+
+$("#cities").change(function (e) {
+  $("#coords").val(majorCities[$("#cities").val()]);
 });
 
 $("#help").click(function(e) {
@@ -17,6 +27,30 @@ $("#help-btn").click(function(e) {
   $("#help").toggle();
 });
 
+$("#moveUser").click(function(e) {
+  current_location = LatLngFromInput();
+  obsMarker.setLatLng(current_location);
+});
+
+
+$("#moveNews").click(function(e) {
+  getNewsFrom4D(LatLngFromInput());
+});
+
+$("#swap").click(function(e) {
+  var newsLoc = popup.getLatLng();
+  var markLoc = current_location;
+  current_location = newsLoc;
+  obsMarker.setLatLng(newsLoc);
+  getNewsFrom4D(markLoc);
+});
+
+function LatLngFromInput() {
+  var coords = $("#coords").val().split(",");
+  console.log(coords.map(Number));
+  return new L.LatLng(coords[0], coords[1]);
+}
+
 $(document).ready(function(){
   current_location = new L.LatLng(41.790636, -87.60104);
   map = L.map('map').setView(current_location, 5);
@@ -27,8 +61,6 @@ $(document).ready(function(){
   obsMarker = L.marker(current_location, {draggable: true, title: "You are here."});
   obsMarker.addTo(map);
   obsMarker.on('dragend', function(e) {
-    var old_html = $("#info").html();
-
     current_location = e.target._latlng;
     var lng = current_location.lng;
     var lat = current_location.lat;
@@ -41,13 +73,6 @@ $(document).ready(function(){
   });
 
   // setup with new york, chicago, LA, philadelphia, san francisco, houston
-  var majorCities = {"New York": [42.3482, -75.1890],
-                     "Chicago": [41.790636, -87.60104], 
-                     "Los Angeles": [34.0500, -118.2500],
-                     "San Francisco": [37.7833, -122.4167], 
-                     "Philadelphia": [39.9500, -75.1667], 
-                     "Houston": [29.7628, -95.3831] 
-                    };
   // majorCities.forEach(function(city) {
   //   var targetPos = new L.LatLng(city[0], city[1]);
   //   var dist = haversine(current_location, targetPos);
@@ -133,7 +158,7 @@ function getNewsFrom4D(targetPos){
     }, function(res) {
       articles = res.response.docs;
       // var popup = L.popup().setLatLng(targetPos, {closeOnClick: false});
-      $("#info").html("Distance: "+(dist|0)+" mi<br>Travel time: "+travelTime+" days");
+      $("#info").html("Distance: "+(dist|0)+" mi | Travel time: "+travelTime+" days");
       popup = L.popup().setLatLng(targetPos, {closeOnClick: false});
       popup.setContent(processArticles(articles, city, province));
       popup.openOn(map);
