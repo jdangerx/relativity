@@ -52,7 +52,6 @@ function getGLocFromPos(targetPos, callback) {
   $.get("http://api.tiles.mapbox.com/v4/geocode/mapbox.places-v1/"+lng+","+lat+".json", {
     access_token: mapboxToken
   }, function(res) {
-    console.log(res.features);
     var features = res.features; // todo: parse features
     var city = features.filter(function(feature){
       return feature.id.slice(0, 4) == "city";
@@ -83,8 +82,10 @@ function getGLocFromPos(targetPos, callback) {
 }
 
 function newYorkSpecialCase(city) {
-  var boroughs = ["manhattan", "brooklyn", "queens", "the bronx", "staten island", "new york"];
-  if (boroughs.indexOf(city) == -1) {
+  var boroughsEtc = ["manhattan", "brooklyn", "queens", "the bronx",
+                     "staten island", "new york", "elmont", "old wbury",
+                     "ridgewood", "bronx", "far rockaway", "atlantic beach"];
+  if (boroughsEtc.indexOf(city) == -1) {
     return city;
   } else {
     return "new york city";
@@ -120,10 +121,9 @@ function getNewsFrom4D(targetPos){
     }, function(res) {
       articles = res.response.docs;
       // var popup = L.popup().setLatLng(targetPos, {closeOnClick: false});
-      console.log('setting info');
       $("#info").html("Distance: "+(dist|0)+" mi<br>Travel time: "+travelTime+" days");
       popup = L.popup().setLatLng(targetPos, {closeOnClick: false});
-      popup.setContent(processArticles(articles));
+      popup.setContent(processArticles(articles, city, province));
       popup.openOn(map);
       // popups.push(popup);
       // popup.on('popupclose', function(e) {
@@ -158,14 +158,17 @@ function processArticles(articles, city, province) {
     }
   });
 
-  return prettify(articles);
+  var location = {city: city, province: province};
+  return prettify(articles, location);
 }
 
-function prettify(articles) {
+function prettify(articles, location) {
+  locStr = location.city? location.city + ", " + location.province : location.province;
   var artStrs = articles.map(function(article) {
     var pub_date = article.pub_date.substring(0, 10);
     return '<a href="' + article.web_url + '">' + article.headline.main + "</a><br>" + pub_date;
   });
+  artStrs.unshift("<strong>"+locStr.toUpperCase()+"</strong>");
 
   return artStrs.join("<br>");
 }
@@ -220,4 +223,5 @@ var STATES = ["Alabama", "Alaska", "Arizona", "Arkansas", "California",
 "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
 "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
 "West Virginia", "Wisconsin", "Wyoming", "District of Columbia",
-"Puerto Rico", "Guam", "American Samoa", "U.S. Virgin Islands", "Northern Mariana Islands "].map(String.toLowerCase);
+              "Puerto Rico", "Guam", "American Samoa", "U.S. Virgin Islands", "Northern Mariana Islands "].map(function(val) {
+                return val.toLowerCase();});
