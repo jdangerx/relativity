@@ -28,7 +28,9 @@ div.leaflet-popup-content-wrapper {
       -1px 1px 0 #EEEEEE,
        1px 1px 0 #EEEEEE;
 }
-
+.leaflet-container a.leaflet-popup-close-button {
+    right: 5px;
+}
 #help {
     position: absolute;
     width: 45%;
