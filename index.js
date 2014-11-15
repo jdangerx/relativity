@@ -14,9 +14,9 @@ $("#speed").change(function (e) {
   updatePopups();
 });
 
-$("#cities").change(function (e) {
-  $("#coords").val(majorCities[$("#cities").val()]);
-});
+// $("#cities").change(function (e) {
+//   $("#coords").val(majorCities[$("#cities").val()]);
+// });
 
 $("#help").click(function(e) {
   $("#help").hide();
@@ -28,13 +28,18 @@ $("#help-btn").click(function(e) {
 });
 
 $("#moveUser").click(function(e) {
-  current_location = LatLngFromInput();
-  obsMarker.setLatLng(current_location);
+  LatLngFromInput(function(latlng) {
+    current_location = latlng;
+    obsMarker.setLatLng(current_location);
+    map.setView(current_location, 5);
+  });
 });
 
 
 $("#moveNews").click(function(e) {
-  getNewsFrom4D(LatLngFromInput());
+  LatLngFromInput(function(latlng) {
+    getNewsFrom4D(latlng);
+  });
 });
 
 $("#swap").click(function(e) {
@@ -45,10 +50,20 @@ $("#swap").click(function(e) {
   getNewsFrom4D(markLoc);
 });
 
-function LatLngFromInput() {
-  var coords = $("#coords").val().split(",");
-  console.log(coords.map(Number));
-  return new L.LatLng(coords[0], coords[1]);
+function LatLngFromInput(callback) {
+  var val = $("#coords").val();
+  if (val.search(/^[-\d]/) != -1) {
+    var coords = val.split(",");
+    callback(new L.LatLng(coords[0], coords[1]));
+  } else {
+    valStr = val.replace(/\W/, "+");
+    $.get("http://api.tiles.mapbox.com/v4/geocode/mapbox.places-v1/"+valStr+".json", {
+      access_token: mapboxToken
+    }, function(res) {
+      var lnglat = res.features[0].geometry.coordinates
+      callback(new L.LatLng(lnglat[1], lnglat[0]));
+    });
+  }
 }
 
 $(document).ready(function(){
