@@ -1,30 +1,94 @@
 var map;
+var obsMarker;
+var popups = [];
+var popup;
+var current_location;
+var SPEED = 30; // miles per day
+$("#speed").change(function (e) {
+  updatePopups();
+});
 $(document).ready(function(){
-  var current_location = new L.LatLng(41.790636, -87.60104);
+  current_location = new L.LatLng(41.790636, -87.60104);
   map = L.map('map').setView(current_location, 5);
   L.tileLayer('http://{s}.tiles.mapbox.com/v3/jdangerx.k7m7mjbo/{z}/{x}/{y}.png', {
       attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
       maxZoom: 18
   }).addTo(map);
+  obsMarker = L.marker(current_location, {draggable: true, title: "You are here."});
+  obsMarker.addTo(map);
+  obsMarker.on('dragend', function(e) {
+    current_location = e.target._latlng;
+    updatePopups();
+  });
 
-  var WALKING = 30; // miles per day
-
-  window.svc_search_v2_articlesearch = function(data) {
-    console.log("got milk");
-    console.log(data);
-  };
   map.on('click', function(e) {
     var targetPos = e.latlng;
-    var dist = haversine(current_location, targetPos);
-    var travelTime = dist / WALKING | 0; // days
-    var news = getNewsFrom4D(travelTime, targetPos);
-
+    // var dist = haversine(current_location, targetPos);
+    // var travelTime = dist / $("#speed").val() | 0; // days
+    getNewsFrom4D(targetPos);
   });
+
+  // setup with new york, chicago, LA, philadelphia, san francisco, houston
+  var majorCities = [[42.3482, -75.1890], //nyc
+                     [41.790636, -87.60104], // chicago
+                     [34.0500, -118.2500], // LA
+                     [37.7833, -122.4167], // sf
+                     [39.9500, -75.1667], // philly
+                     [29.7628, -95.3831] // houston
+                    ];
+  // majorCities.forEach(function(city) {
+  //   var targetPos = new L.LatLng(city[0], city[1]);
+  //   var dist = haversine(current_location, targetPos);
+  //   var travelTime = dist / $("#speed").val() | 0; // days
+  //   getNewsFrom4D(targetPos);
+  // });
+
+
 });
 
-function getGLocFromPos(targetPos) {
-  // return '("NEW YORK CITY", "CHICAGO")';
+function getGLocFromPos(targetPos, callback) {
+  var lat = targetPos.lat;
+  var lng = targetPos.lng;
+  $.get("http://api.tiles.mapbox.com/v4/geocode/mapbox.places-v1/"+lng+","+lat+".json", {
+    access_token: mapboxToken
+  }, function(res) {
+    console.log(res.features);
+    var features = res.features; // todo: parse features
+    var city = features.filter(function(feature){
+      return feature.id.slice(0, 4) == "city";
+    });
+    if (city.length > 0) {
+      city = city[0].text.toLowerCase();
+    } else {
+      city = void 0;
+    }
+
+    var province = features.filter(function(feature){
+      return feature.id.slice(0, 8) == "province";
+    });
+    if (province.length > 0) {
+      province = province[0].text.toLowerCase();
+    } else {
+      province = void 0;
+    }
+    // if (res.features.length >= 4) {
+    //   var province = res.features[res.features.length-2].text.toLowerCase();
+    //   var city = res.features[0].text.toLowerCase();
+    // }
+    city = newYorkSpecialCase(city);
+    callback(city, province);
+  }, "JSON");
+
   return '("ILLINOIS")';
+}
+
+function newYorkSpecialCase(city) {
+  var boroughs = ["manhattan", "brooklyn", "queens", "the bronx", "staten island", "new york"];
+  if (boroughs.indexOf(city) == -1) {
+    return city;
+  } else {
+    return "new york city";
+  }
 }
 
 function getDateFromTravelTime(travelTime) {
@@ -40,21 +104,75 @@ function getDateFromTravelTime(travelTime) {
   return datestr;
 }
 
-function getNewsFrom4D(travelTime, targetPos){
-  var glocations = "glocations:"+getGLocFromPos(targetPos);
-  console.log(getDateFromTravelTime(travelTime));
+function getNewsFrom4D(targetPos){
+  var dist = haversine(current_location, targetPos);
+  var travelTime = dist / $("#speed").val() | 0; // in days
   var articles;
-  $.get("http://api.nytimes.com/svc/search/v2/articlesearch.json", {
-    "api-key":API,
-    sort: "newest",
-    fq: glocations,
-    end_date: getDateFromTravelTime(travelTime),
-  }, function(res) {
-    articles = res.response.docs;
-    console.log(articles);
-    var popup = L.popup().setLatLng(targetPos).setContent(articles[0].headline.main).openOn(map);
-    return articles;
-  }, "JSON");
+  getGLocFromPos(targetPos, function(city, province) {
+    var glocations = "glocations:"+'("'+city+'", "'+province+'")';
+    console.log(glocations);
+    $.get("http://api.nytimes.com/svc/search/v2/articlesearch.json", {
+      "api-key":API,
+      sort: "newest",
+      fq: glocations,
+      fl: "headline,web_url,keywords,pub_date",
+      end_date: getDateFromTravelTime(travelTime),
+    }, function(res) {
+      articles = res.response.docs;
+      // var popup = L.popup().setLatLng(targetPos, {closeOnClick: false});
+      console.log('setting info');
+      $("#info").html("Distance: "+(dist|0)+" mi<br>Travel time: "+travelTime+" days");
+      popup = L.popup().setLatLng(targetPos, {closeOnClick: false});
+      popup.setContent(processArticles(articles));
+      popup.openOn(map);
+      // popups.push(popup);
+      // popup.on('popupclose', function(e) {
+      //   var p = e.popup;
+      //   popups.splice(popups.indexOf(p), 1);
+      // });
+      return articles;
+    }, "JSON");
+  });
+}
+
+function processArticles(articles, city, province) {
+  articles = articles.map(cleanKeywords);
+  articles = articles.map(function (article) {
+    article.locations = article.keywords.map(function(keyword) {
+      return keyword.value.toLowerCase();
+    });
+    article.states = [];
+    article.locations.forEach(function(location) {
+      if (STATES.indexOf(location) != -1) {
+        article.states.push(location);
+      }
+    });
+    return article;
+  });
+  articles.filter(function (article) {
+    if (article.states.length === 0) {
+      return true;
+    }
+    else {
+      return (article.states.indexOf(province) != -1);
+    }
+  });
+
+  return prettify(articles);
+}
+
+function prettify(articles) {
+  var artStrs = articles.map(function(article) {
+    var pub_date = article.pub_date.substring(0, 10);
+    return '<a href="' + article.web_url + '">' + article.headline.main + "</a><br>" + pub_date;
+  });
+
+  return artStrs.join("<br>");
+}
+
+function cleanKeywords(article) {
+  article.keywords = article.keywords.filter(function(val) { return val.name == "glocations"; });
+  return article;
 }
 
 function toRadians(deg) {
@@ -80,4 +198,26 @@ function haversine(latlng1, latlng2) {
   return d;
 }
 
+function updatePopups(){
+  // popups.forEach(function(popup) {
+    // var targetPos = popup.getLatLng();
+    // getNewsFrom4D(targetPos);
+  // });
+  var targetPos = popup.getLatLng();
+  getNewsFrom4D(targetPos);
+}
+
 var API = "240e8ee06f21f43d31b770c214bbf000:17:54902379";
+var mapboxToken = "pk.eyJ1IjoiamRhbmdlcngiLCJhIjoic2t0aGl6SSJ9.e3gf0i6O2ecn2gwiii7yWw";
+
+var STATES = ["Alabama", "Alaska", "Arizona", "Arkansas", "California",
+"Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii",
+"Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
+"Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan",
+"Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska",
+"Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York",
+"North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+"Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+"Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+"West Virginia", "Wisconsin", "Wyoming", "District of Columbia",
+"Puerto Rico", "Guam", "American Samoa", "U.S. Virgin Islands", "Northern Mariana Islands "].map(String.toLowerCase);
