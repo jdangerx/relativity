@@ -19,12 +19,12 @@ $("#speed").change(function (e) {
 // });
 
 $("#help").click(function(e) {
-  $("#help").hide();
+  $("#help").hide({duration: 400, easing: "swing"});
 });
 
 $("#help-btn").click(function(e) {
   console.log('hi');
-  $("#help").toggle();
+  $("#help").toggle({duration: 400, easing: "swing"});
 });
 
 $("#moveUser").click(function(e) {
