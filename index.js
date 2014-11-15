@@ -1,6 +1,7 @@
+var map;
 $(document).ready(function(){
   var current_location = new L.LatLng(41.790636, -87.60104);
-  var map = L.map('map').setView(current_location, 5);
+  map = L.map('map').setView(current_location, 5);
   L.tileLayer('http://{s}.tiles.mapbox.com/v3/jdangerx.k7m7mjbo/{z}/{x}/{y}.png', {
       attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
       maxZoom: 18
@@ -8,17 +9,22 @@ $(document).ready(function(){
 
   var WALKING = 30; // miles per day
 
+  window.svc_search_v2_articlesearch = function(data) {
+    console.log("got milk");
+    console.log(data);
+  };
   map.on('click', function(e) {
     var targetPos = e.latlng;
     var dist = haversine(current_location, targetPos);
     var travelTime = dist / WALKING | 0; // days
-    getNewsFrom4D(travelTime, targetPos);
+    var news = getNewsFrom4D(travelTime, targetPos);
 
   });
 });
 
 function getGLocFromPos(targetPos) {
-  return '("NEW YORK CITY")';
+  // return '("NEW YORK CITY", "CHICAGO")';
+  return '("ILLINOIS")';
 }
 
 function getDateFromTravelTime(travelTime) {
@@ -35,24 +41,20 @@ function getDateFromTravelTime(travelTime) {
 }
 
 function getNewsFrom4D(travelTime, targetPos){
-  var search_base = "http://api.nytimes.com/svc/search/v2/articlesearch.JSON?&fq=";
   var glocations = "glocations:"+getGLocFromPos(targetPos);
-  var end_date = "&end_date="+getDateFromTravelTime(travelTime);
-  var sort = "&sort=newest";
-  var api_key = "&api-key=240e8ee06f21f43d31b770c214bbf000:17:54902379";
-  var search_str = search_base+glocations+end_date+sort+api_key;
-  console.log(search_str);
-  $.ajax({method: "GET",
-          url: search_str,
-          success: function(data, textStatus, xhr) {
-            console.log("success!");
-            console.log(data);
-          },
-          error: function(xhr, textStatus, errorThrown) {
-            console.log("AJAX Get Error in getNewsFrom4D: " + textStatus + ", " + errorThrown);
-          },
-          dataType: "json"
-        });
+  console.log(getDateFromTravelTime(travelTime));
+  var articles;
+  $.get("http://api.nytimes.com/svc/search/v2/articlesearch.json", {
+    "api-key":API,
+    sort: "newest",
+    fq: glocations,
+    end_date: getDateFromTravelTime(travelTime),
+  }, function(res) {
+    articles = res.response.docs;
+    console.log(articles);
+    var popup = L.popup().setLatLng(targetPos).setContent(articles[0].headline.main).openOn(map);
+    return articles;
+  }, "JSON");
 }
 
 function toRadians(deg) {
@@ -77,3 +79,5 @@ function haversine(latlng1, latlng2) {
   var d = R * c;
   return d;
 }
+
+var API = "240e8ee06f21f43d31b770c214bbf000:17:54902379";
