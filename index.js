@@ -39,7 +39,7 @@ function getNewsFrom4D(travelTime, targetPos){
   var glocations = "glocations:"+getGLocFromPos(targetPos);
   var end_date = "&end_date="+getDateFromTravelTime(travelTime);
   var sort = "&sort=newest";
-  var api_key = "api-key=240e8ee06f21f43d31b770c214bbf000:17:54902379";
+  var api_key = "&api-key=240e8ee06f21f43d31b770c214bbf000:17:54902379";
   var search_str = search_base+glocations+end_date+sort+api_key;
   console.log(search_str);
   $.ajax({method: "GET",
