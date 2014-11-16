@@ -218,7 +218,7 @@ function prettify(articles, location) {
   locStr = location.city? location.city + ", " + location.province : location.province;
   var artStrs = articles.map(function(article) {
     var pub_date = article.pub_date.substring(0, 10);
-    return '<a href="' + article.web_url + '">' + article.headline.main + "</a><br>" + pub_date;
+    return '<a href="' + article.web_url + '" target="_blank">' + article.headline.main + "</a><br>" + pub_date;
   });
   artStrs.unshift("<strong>"+locStr.toUpperCase()+"</strong>");
 
